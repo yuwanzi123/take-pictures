@@ -1,4 +1,2 @@
-BACKGROUND
-carrots_bin
-chicken_wing_bin
 chicken_wing
+chicken_wing_bin
