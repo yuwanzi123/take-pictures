@@ -1,0 +1,4 @@
+BACKGROUND
+carrots_bin
+chicken_wing_bin
+chicken_wing
