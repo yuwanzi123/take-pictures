@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
@@ -108,7 +109,16 @@ fun CameraPreviewWithCaptureButton() {
 
                         previewView
                     },
-                    modifier = Modifier.fillMaxSize()
+                    modifier = if (isLandscape) {
+                        Modifier
+                            .size(300.dp, 400.dp)
+                            .align(Alignment.Center)
+                    } else {
+                        Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(4f / 3f)
+                            .align(Alignment.Center)
+                    }
                 )
 
                 if (isLandscape) {
@@ -116,7 +126,7 @@ fun CameraPreviewWithCaptureButton() {
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(16.dp),
-                        horizontalAlignment = androidx.compose.ui.Alignment.End,
+                        horizontalAlignment = Alignment.End,
                         verticalArrangement = Arrangement.Center
                     ) {
                         Button(
@@ -167,7 +177,7 @@ fun CameraPreviewWithCaptureButton() {
                             .fillMaxSize()
                             .padding(16.dp),
                         verticalArrangement = Arrangement.Bottom,
-                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Button(
                             onClick = {
@@ -226,7 +236,7 @@ fun CameraPreviewWithCaptureButton() {
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(16.dp),
-                        horizontalAlignment = androidx.compose.ui.Alignment.End,
+                        horizontalAlignment = Alignment.End,
                         verticalArrangement = Arrangement.Center
                     ) {
                         Button(
@@ -243,7 +253,7 @@ fun CameraPreviewWithCaptureButton() {
                             .fillMaxSize()
                             .padding(16.dp),
                         verticalArrangement = Arrangement.Bottom,
-                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Button(
                             onClick = {
