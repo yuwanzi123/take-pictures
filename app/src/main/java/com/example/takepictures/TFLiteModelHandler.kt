@@ -41,11 +41,11 @@ class TFLiteModelHandler(private val context: Context) {
 
         logModelOutputs(detectionBoxes, detectionClasses, detectionScores, numDetections)
 
-        val detectedClasses = detectionClasses[0].distinct().size
+        val detectedClassCount = detectionClasses[0].distinct().count { it != 0f }
 
         val processedBitmap = drawBoundingBoxes(bitmap, detectionBoxes, detectionClasses, detectionScores, numDetections)
 
-        return InferenceResult(processedBitmap, detectedClasses)
+        return InferenceResult(processedBitmap, detectedClassCount)
     }
 
     private fun bitmapToByteBuffer(bitmap: Bitmap): ByteBuffer {
