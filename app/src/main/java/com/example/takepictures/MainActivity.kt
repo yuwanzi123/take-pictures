@@ -3,6 +3,7 @@ package com.example.takepictures
 import android.Manifest
 import android.content.ContentValues
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.net.Uri
@@ -55,6 +56,7 @@ fun CameraPreviewWithCaptureButton() {
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var capturedImageUri by remember { mutableStateOf<Uri?>(null) }
     var processedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var isLandscape by remember { mutableStateOf(context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -65,6 +67,10 @@ fun CameraPreviewWithCaptureButton() {
 
     LaunchedEffect(Unit) {
         launcher.launch(Manifest.permission.CAMERA)
+    }
+
+    LaunchedEffect(context.resources.configuration.orientation) {
+        isLandscape = context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     }
 
     if (hasCameraPermission) {
@@ -105,53 +111,105 @@ fun CameraPreviewWithCaptureButton() {
                     modifier = Modifier.fillMaxSize()
                 )
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.Bottom,
-                    horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
-                ) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = {
-                            val outputOptions = ImageCapture.OutputFileOptions.Builder(
-                                context.contentResolver,
-                                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                                ContentValues().apply {
-                                    put(
-                                        MediaStore.Images.Media.DISPLAY_NAME,
-                                        SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(
-                                            System.currentTimeMillis()
-                                        ) + ".jpg"
-                                    )
-                                    put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-                                }
-                            ).build()
-
-                            imageCapture?.takePicture(
-                                outputOptions,
-                                ContextCompat.getMainExecutor(context),
-                                object : ImageCapture.OnImageSavedCallback {
-                                    override fun onError(exception: ImageCaptureException) {
-                                        Log.e("CameraPreview", "Image capture failed: ${exception.message}", exception)
+                if (isLandscape) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        horizontalAlignment = androidx.compose.ui.Alignment.End,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Button(
+                            onClick = {
+                                val outputOptions = ImageCapture.OutputFileOptions.Builder(
+                                    context.contentResolver,
+                                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                                    ContentValues().apply {
+                                        put(
+                                            MediaStore.Images.Media.DISPLAY_NAME,
+                                            SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(
+                                                System.currentTimeMillis()
+                                            ) + ".jpg"
+                                        )
+                                        put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
                                     }
+                                ).build()
 
-                                    override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                                        Log.d("CameraPreview", "Image saved successfully: ${outputFileResults.savedUri}")
-                                        capturedImageUri = outputFileResults.savedUri
-                                        capturedImageUri?.let {
-                                            val bitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, it)
-                                            val rotatedBitmap = rotateBitmapIfNeeded(context, it, bitmap)
-                                            val tfliteModelHandler = TFLiteModelHandler(context)
-                                            processedBitmap = tfliteModelHandler.runInference(rotatedBitmap)
+                                imageCapture?.takePicture(
+                                    outputOptions,
+                                    ContextCompat.getMainExecutor(context),
+                                    object : ImageCapture.OnImageSavedCallback {
+                                        override fun onError(exception: ImageCaptureException) {
+                                            Log.e("CameraPreview", "Image capture failed: ${exception.message}", exception)
+                                        }
+
+                                        override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                                            Log.d("CameraPreview", "Image saved successfully: ${outputFileResults.savedUri}")
+                                            capturedImageUri = outputFileResults.savedUri
+                                            capturedImageUri?.let {
+                                                val bitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, it)
+                                                val rotatedBitmap = rotateBitmapIfNeeded(context, it, bitmap)
+                                                val tfliteModelHandler = TFLiteModelHandler(context)
+                                                processedBitmap = tfliteModelHandler.runInference(rotatedBitmap)
+                                            }
                                         }
                                     }
-                                }
-                            )
+                                )
+                            },
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        ) {
+                            Text("Capture Image")
                         }
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.Bottom,
+                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
                     ) {
-                        Text("Capture Image")
+                        Button(
+                            onClick = {
+                                val outputOptions = ImageCapture.OutputFileOptions.Builder(
+                                    context.contentResolver,
+                                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                                    ContentValues().apply {
+                                        put(
+                                            MediaStore.Images.Media.DISPLAY_NAME,
+                                            SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(
+                                                System.currentTimeMillis()
+                                            ) + ".jpg"
+                                        )
+                                        put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                                    }
+                                ).build()
+
+                                imageCapture?.takePicture(
+                                    outputOptions,
+                                    ContextCompat.getMainExecutor(context),
+                                    object : ImageCapture.OnImageSavedCallback {
+                                        override fun onError(exception: ImageCaptureException) {
+                                            Log.e("CameraPreview", "Image capture failed: ${exception.message}", exception)
+                                        }
+
+                                        override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                                            Log.d("CameraPreview", "Image saved successfully: ${outputFileResults.savedUri}")
+                                            capturedImageUri = outputFileResults.savedUri
+                                            capturedImageUri?.let {
+                                                val bitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, it)
+                                                val rotatedBitmap = rotateBitmapIfNeeded(context, it, bitmap)
+                                                val tfliteModelHandler = TFLiteModelHandler(context)
+                                                processedBitmap = tfliteModelHandler.runInference(rotatedBitmap)
+                                            }
+                                        }
+                                    }
+                                )
+                            },
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        ) {
+                            Text("Capture Image")
+                        }
                     }
                 }
             } else {
@@ -163,19 +221,37 @@ fun CameraPreviewWithCaptureButton() {
                     )
                 }
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.Bottom,
-                    horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
-                ) {
-                    Button(
-                        onClick = {
-                            processedBitmap = null
-                        }
+                if (isLandscape) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        horizontalAlignment = androidx.compose.ui.Alignment.End,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        Text("Take New Picture")
+                        Button(
+                            onClick = {
+                                processedBitmap = null
+                            }
+                        ) {
+                            Text("Take New Picture")
+                        }
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.Bottom,
+                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+                    ) {
+                        Button(
+                            onClick = {
+                                processedBitmap = null
+                            }
+                        ) {
+                            Text("Take New Picture")
+                        }
                     }
                 }
             }
