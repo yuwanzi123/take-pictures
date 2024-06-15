@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -57,6 +58,7 @@ fun CameraPreviewWithCaptureButton() {
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var capturedImageUri by remember { mutableStateOf<Uri?>(null) }
     var processedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var detectedClasses by remember { mutableStateOf(0) }
     var isLandscape by remember { mutableStateOf(context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) }
 
     val launcher = rememberLauncherForActivityResult(
@@ -122,53 +124,65 @@ fun CameraPreviewWithCaptureButton() {
                 )
 
                 if (isLandscape) {
-                    Column(
+                    Row(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(16.dp),
-                        horizontalAlignment = Alignment.End,
-                        verticalArrangement = Arrangement.Center
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Button(
-                            onClick = {
-                                val outputOptions = ImageCapture.OutputFileOptions.Builder(
-                                    context.contentResolver,
-                                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                                    ContentValues().apply {
-                                        put(
-                                            MediaStore.Images.Media.DISPLAY_NAME,
-                                            SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(
-                                                System.currentTimeMillis()
-                                            ) + ".jpg"
-                                        )
-                                        put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-                                    }
-                                ).build()
-
-                                imageCapture?.takePicture(
-                                    outputOptions,
-                                    ContextCompat.getMainExecutor(context),
-                                    object : ImageCapture.OnImageSavedCallback {
-                                        override fun onError(exception: ImageCaptureException) {
-                                            Log.e("CameraPreview", "Image capture failed: ${exception.message}", exception)
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Button(
+                                onClick = {
+                                    val outputOptions = ImageCapture.OutputFileOptions.Builder(
+                                        context.contentResolver,
+                                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                                        ContentValues().apply {
+                                            put(
+                                                MediaStore.Images.Media.DISPLAY_NAME,
+                                                SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(
+                                                    System.currentTimeMillis()
+                                                ) + ".jpg"
+                                            )
+                                            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
                                         }
+                                    ).build()
 
-                                        override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                                            Log.d("CameraPreview", "Image saved successfully: ${outputFileResults.savedUri}")
-                                            capturedImageUri = outputFileResults.savedUri
-                                            capturedImageUri?.let {
-                                                val bitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, it)
-                                                val rotatedBitmap = rotateBitmapIfNeeded(context, it, bitmap)
-                                                val tfliteModelHandler = TFLiteModelHandler(context)
-                                                processedBitmap = tfliteModelHandler.runInference(rotatedBitmap)
+                                    imageCapture?.takePicture(
+                                        outputOptions,
+                                        ContextCompat.getMainExecutor(context),
+                                        object : ImageCapture.OnImageSavedCallback {
+                                            override fun onError(exception: ImageCaptureException) {
+                                                Log.e("CameraPreview", "Image capture failed: ${exception.message}", exception)
+                                            }
+
+                                            override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                                                Log.d("CameraPreview", "Image saved successfully: ${outputFileResults.savedUri}")
+                                                capturedImageUri = outputFileResults.savedUri
+                                                capturedImageUri?.let {
+                                                    val bitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, it)
+                                                    val rotatedBitmap = rotateBitmapIfNeeded(context, it, bitmap)
+                                                    val tfliteModelHandler = TFLiteModelHandler(context)
+                                                    val inferenceResult = tfliteModelHandler.runInference(rotatedBitmap)
+                                                    processedBitmap = inferenceResult.bitmap
+                                                    detectedClasses = inferenceResult.detectedClasses
+                                                }
                                             }
                                         }
-                                    }
-                                )
-                            },
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        ) {
-                            Text("Capture Image")
+                                    )
+                                },
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            ) {
+                                Text("Capture Image")
+                            }
+                            Text(
+                                text = "I detected $detectedClasses classes",
+                                color = Color.Blue,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
                         }
                     }
                 } else {
@@ -210,7 +224,9 @@ fun CameraPreviewWithCaptureButton() {
                                                 val bitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, it)
                                                 val rotatedBitmap = rotateBitmapIfNeeded(context, it, bitmap)
                                                 val tfliteModelHandler = TFLiteModelHandler(context)
-                                                processedBitmap = tfliteModelHandler.runInference(rotatedBitmap)
+                                                val inferenceResult = tfliteModelHandler.runInference(rotatedBitmap)
+                                                processedBitmap = inferenceResult.bitmap
+                                                detectedClasses = inferenceResult.detectedClasses
                                             }
                                         }
                                     }
@@ -223,45 +239,67 @@ fun CameraPreviewWithCaptureButton() {
                     }
                 }
             } else {
-                processedBitmap?.let { bitmap ->
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = "Captured Image",
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
                 if (isLandscape) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.End,
-                        verticalArrangement = Arrangement.Center
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Button(
-                            onClick = {
-                                processedBitmap = null
+                        processedBitmap?.let { bitmap ->
+                            Box(modifier = Modifier.weight(1f)) {
+                                Image(
+                                    bitmap = bitmap.asImageBitmap(),
+                                    contentDescription = "Captured Image",
+                                    modifier = Modifier.align(Alignment.Center)
+                                )
                             }
+                        }
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.Center
                         ) {
-                            Text("Take New Picture")
+                            Button(
+                                onClick = {
+                                    processedBitmap = null
+                                },
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            ) {
+                                Text("Take New Picture")
+                            }
+                            Text(
+                                text = "I detected $detectedClasses classes",
+                                color = Color.Blue,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
                         }
                     }
                 } else {
                     Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.Bottom,
+                        modifier = Modifier.fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        processedBitmap?.let { bitmap ->
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = "Captured Image",
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                         Button(
                             onClick = {
                                 processedBitmap = null
-                            }
+                            },
+                            modifier = Modifier.padding(bottom = 16.dp)
                         ) {
                             Text("Take New Picture")
                         }
+                        Text(
+                            text = "I detected $detectedClasses classes",
+                            color = Color.Blue,
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .padding(16.dp)
+                        )
                     }
                 }
             }

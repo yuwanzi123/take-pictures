@@ -19,7 +19,9 @@ class TFLiteModelHandler(private val context: Context) {
         labels = FileUtil.loadLabels(context, "labelmap.txt")
     }
 
-    fun runInference(bitmap: Bitmap): Bitmap {
+    data class InferenceResult(val bitmap: Bitmap, val detectedClasses: Int)
+
+    fun runInference(bitmap: Bitmap): InferenceResult {
         val resizedBitmap = Bitmap.createScaledBitmap(bitmap, 320, 320, true)
         val inputBuffer = bitmapToByteBuffer(resizedBitmap)
 
@@ -39,7 +41,11 @@ class TFLiteModelHandler(private val context: Context) {
 
         logModelOutputs(detectionBoxes, detectionClasses, detectionScores, numDetections)
 
-        return drawBoundingBoxes(bitmap, detectionBoxes, detectionClasses, detectionScores, numDetections)
+        val detectedClasses = detectionClasses[0].distinct().size
+
+        val processedBitmap = drawBoundingBoxes(bitmap, detectionBoxes, detectionClasses, detectionScores, numDetections)
+
+        return InferenceResult(processedBitmap, detectedClasses)
     }
 
     private fun bitmapToByteBuffer(bitmap: Bitmap): ByteBuffer {
@@ -123,4 +129,5 @@ class TFLiteModelHandler(private val context: Context) {
 
         return outputBitmap
     }
+
 }
